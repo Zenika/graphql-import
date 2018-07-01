@@ -193,7 +193,12 @@ function collectDefinitions(
   const dirname = path.dirname(filePath)
 
   // Get TypeDefinitionNodes from current schema
-  const document = getDocumentFromSDL(sdl)
+  let document
+  try {
+    document = getDocumentFromSDL(sdl)
+  } catch (parseError) {
+    throw new Error(`Error in ${filePath} : ${parseError.message}`)
+  }
 
   // Add all definitions to running total
   allDefinitions.push(filterTypeDefinitions(document.definitions))
