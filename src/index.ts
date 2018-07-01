@@ -232,6 +232,11 @@ function collectDefinitions(
 
   // Process each file (recursively)
   mergedModules.forEach(m => {
+    if (!isFile(m.from) && !schemas[m.from]) {
+      throw new Error(
+        `Error in ${filePath} : "${m.from}" is not a valid module. It should end with ".gql", ".graphql" or be declared in schemas collection.`
+      )
+    }
     // If it was not yet processed (in case of circular dependencies)
     const moduleFilePath =
       isFile(filePath) && isFile(m.from)
