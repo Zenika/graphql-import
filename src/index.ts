@@ -9,7 +9,7 @@ import {
   DocumentNode,
   Kind,
 } from 'graphql'
-import { flatten, groupBy, includes, keyBy } from 'lodash'
+import { flatten, groupBy, includes, keyBy, every } from 'lodash'
 import * as path from 'path'
 
 import { completeDefinitionPool, ValidDefinitionNode } from './definition'
@@ -182,7 +182,7 @@ function collectDefinitions(
   sdl: string,
   filePath: string,
   schemas?: { [key: string]: string },
-  processedFiles: Set<string> = new Set(),
+  processedFiles: {[file: string]: Set<string>} = {},
   typeDefinitions: ValidDefinitionNode[][] = [],
   allDefinitions: ValidDefinitionNode[][] = [],
 ): {
@@ -203,9 +203,13 @@ function collectDefinitions(
   // Add all definitions to running total
   allDefinitions.push(filterTypeDefinitions(document.definitions))
 
+  if (!processedFiles[filePath]) processedFiles[filePath] = new Set()
+  const processedTypes = processedFiles[filePath]
+  const filteredImports = imports.filter(i => !processedTypes.has(i))
+
   // Filter TypeDefinitionNodes by type and defined imports
   const currentTypeDefinitions = filterImportedDefinitions(
-    imports,
+    filteredImports,
     document.definitions,
     allDefinitions,
   )
@@ -214,7 +218,7 @@ function collectDefinitions(
   typeDefinitions.push(currentTypeDefinitions)
 
   // Mark file as processed (for circular dependency cases)
-  processedFiles.add(key)
+  filteredImports.forEach(i => processedTypes.add(i))
 
   // Read imports from current file
   const rawModules = parseSDL(sdl)
@@ -242,17 +246,19 @@ function collectDefinitions(
       isFile(filePath) && isFile(m.from)
         ? path.resolve(path.join(dirname, m.from))
         : m.from
-    if (!processedFiles.has(moduleFilePath)) {
-      collectDefinitions(
-        m.imports,
-        read(moduleFilePath, schemas),
-        moduleFilePath,
-        schemas,
-        processedFiles,
-        typeDefinitions,
-        allDefinitions,
-      )
-    }
+
+    const processedTypes = processedFiles[moduleFilePath]
+    if (processedTypes && (processedTypes.has('*') || every(m.imports, i => processedTypes.has(i)))) return
+
+    collectDefinitions(
+      m.imports,
+      read(moduleFilePath, schemas),
+      moduleFilePath,
+      schemas,
+      processedFiles,
+      typeDefinitions,
+      allDefinitions,
+    )
   })
 
   // Return the maps of type definitions from each file
