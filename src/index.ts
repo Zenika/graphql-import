@@ -9,7 +9,7 @@ import {
   DocumentNode,
   Kind,
 } from 'graphql'
-import { flatten, groupBy, includes, keyBy } from 'lodash'
+import { flatten, groupBy, includes, keyBy, find } from 'lodash'
 import * as path from 'path'
 
 import { completeDefinitionPool, ValidDefinitionNode } from './definition'
@@ -199,11 +199,16 @@ function collectDefinitions(
   allDefinitions.push(filterTypeDefinitions(document.definitions))
 
   // Filter TypeDefinitionNodes by type and defined imports
-  const currentTypeDefinitions = filterImportedDefinitions(
-    imports,
-    document.definitions,
-    allDefinitions,
-  )
+  let currentTypeDefinitions
+  try {
+    currentTypeDefinitions = filterImportedDefinitions(
+      imports,
+      document.definitions,
+      allDefinitions,
+    )
+  } catch (err) {
+    throw new Error(`Error in ${filePath} : ${err.message}`)
+  }
 
   // Add typedefinitions to running total
   typeDefinitions.push(currentTypeDefinitions)
@@ -294,11 +299,9 @@ function filterImportedDefinitions(
 
     for (const rootType in groupedFieldImports) {
       const fields = groupedFieldImports[rootType].map(x => x.split('.')[1])
-      ;(filteredDefinitions.find(
-        def => def.name.value === rootType,
-      ) as ObjectTypeDefinitionNode).fields = (filteredDefinitions.find(
-        def => def.name.value === rootType,
-      ) as ObjectTypeDefinitionNode).fields.filter(
+      const definition = find(filteredDefinitions, { name : { value: rootType } }) as ObjectTypeDefinitionNode
+      if(!definition) throw new Error(`Failed to import root type ${rootType}`)
+      definition.fields = definition.fields.filter(
         f => includes(fields, f.name.value) || includes(fields, '*'),
       )
     }
