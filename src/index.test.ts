@@ -745,6 +745,11 @@ test('missing type on directive', t => {
   )
 })
 
+test('import unerecognized module', t => {
+  t.throws(() => importSchema('fixtures/global/a.graphql'), Error)
+
+})
+
 test('imports missing named imports for file imported multiple time without duplicates', t => {
   const expectedSDL = `\
 type Query {

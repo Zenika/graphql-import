@@ -32,7 +32,7 @@ const read = (schema: string, schemas?: { [key: string]: string }) => {
   return schemas ? schemas[schema] : schema
 }
 
-const isFile = f => f.endsWith('.graphql')
+const isFile = f => f.endsWith('.graphql') || f.endsWith('.gql')
 
 /**
  * Parse a single import line and extract imported types and schema filename
@@ -193,7 +193,12 @@ function collectDefinitions(
   const dirname = path.dirname(filePath)
 
   // Get TypeDefinitionNodes from current schema
-  const document = getDocumentFromSDL(sdl)
+  let document
+  try {
+    document = getDocumentFromSDL(sdl)
+  } catch (parseError) {
+    throw new Error(`Error in ${filePath} : ${parseError.message}`)
+  }
 
   // Add all definitions to running total
   allDefinitions.push(filterTypeDefinitions(document.definitions))
@@ -231,6 +236,11 @@ function collectDefinitions(
 
   // Process each file (recursively)
   mergedModules.forEach(m => {
+    if (!isFile(m.from) && !schemas[m.from]) {
+      throw new Error(
+        `Error in ${filePath} : "${m.from}" is not a valid module. It should end with ".gql", ".graphql" or be declared in schemas collection.`
+      )
+    }
     // If it was not yet processed (in case of circular dependencies)
     const moduleFilePath =
       isFile(filePath) && isFile(m.from)
