@@ -744,3 +744,7 @@ test('missing type on directive', t => {
     `Directive first: Couldn't find type first in any of the schemas.`,
   )
 })
+
+test('import unerecognized module', t => {
+  t.throws(() => importSchema('fixtures/global/a.graphql'), Error)
+})
